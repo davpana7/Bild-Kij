@@ -25,6 +25,30 @@ const HF_TOKEN = process.env.HF_TOKEN;
 const limits = {};
 
 app.post("/generate", async (req, res) => {
+ // GET-Route für Google Sites (Bild direkt als <img>)
+app.get("/generate", async (req, res) => {
+  const prompt = req.query.prompt || "a blue car";
+
+  try {
+    const response = await fetch(
+      "https://api-inference.huggingface.co/models/runwayml/stable-diffusion-v1-5",
+      {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${process.env.HF_TOKEN}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ inputs: prompt })
+      }
+    );
+
+    const buffer = await response.arrayBuffer();
+    res.setHeader("Content-Type", "image/png");
+    res.send(Buffer.from(buffer));
+  } catch (e) {
+    res.status(500).send("Error generating image");
+  }
+});
   const ip =
     req.headers["x-forwarded-for"] ||
     req.socket.remoteAddress ||
