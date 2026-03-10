@@ -1,31 +1,24 @@
-// Erlaubt Google Sites, Bilder anzuzeigen
-app.use((req, res, next) => {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-  if (req.method === "OPTIONS") {
-    return res.sendStatus(204);
-  }
-  next();
-});
-
-// kleine Testseite (weckt den Server)
-app.get("/", (req, res) => {
-  res.send("OK");
-});import express from "express";
+import express from "express";
 import fetch from "node-fetch";
 
 const app = express();
 app.use(express.json());
 
-// Hugging Face Token kommt von Render (Environment Variable)
-const HF_TOKEN = process.env.HF_TOKEN;
+// CORS (für Google Sites)
+app.use((req, res, next) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  if (req.method === "OPTIONS") return res.sendStatus(204);
+  next();
+});
 
-// Einfaches Schüler-Limit (2 Bilder pro Tag)
-const limits = {};
+// Test-Route
+app.get("/", (req, res) => {
+  res.send("OK");
+});
 
-app.post("/generate", async (req, res) => {
- // GET-Route für Google Sites (Bild direkt als <img>)
+// GET /generate (für Google Sites <img>)
 app.get("/generate", async (req, res) => {
   const prompt = req.query.prompt || "a blue car";
 
@@ -45,25 +38,21 @@ app.get("/generate", async (req, res) => {
     const buffer = await response.arrayBuffer();
     res.setHeader("Content-Type", "image/png");
     res.send(Buffer.from(buffer));
-  } catch (e) {
+  } catch {
     res.status(500).send("Error generating image");
   }
 });
-  const ip =
-    req.headers["x-forwarded-for"] ||
-    req.socket.remoteAddress ||
-    "unknown";
 
+// POST /generate (optional)
+const limits = {};
+app.post("/generate", async (req, res) => {
+  const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
   const today = new Date().toISOString().slice(0, 10);
   const key = ip + today;
 
   limits[key] = (limits[key] || 0) + 1;
-
-  // MAX 2 Bilder pro Tag
   if (limits[key] > 2) {
-    return res.status(429).json({
-      error: "Tageslimit erreicht"
-    });
+    return res.status(429).json({ error: "Tageslimit erreicht" });
   }
 
   try {
@@ -72,23 +61,18 @@ app.get("/generate", async (req, res) => {
       {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${HF_TOKEN}`,
+          "Authorization": `Bearer ${process.env.HF_TOKEN}`,
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({
-          inputs: req.body.prompt
-        })
+        body: JSON.stringify({ inputs: req.body.prompt })
       }
     );
 
     const buffer = await response.arrayBuffer();
-
-    res.set("Content-Type", "image/png");
+    res.setHeader("Content-Type", "image/png");
     res.send(Buffer.from(buffer));
-  } catch (error) {
-    res.status(500).json({
-      error: "Fehler bei der KI"
-    });
+  } catch {
+    res.status(500).json({ error: "Fehler bei der KI" });
   }
 });
 
