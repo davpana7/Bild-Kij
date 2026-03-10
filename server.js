@@ -1,4 +1,18 @@
-import express from "express";
+// Erlaubt Google Sites, Bilder anzuzeigen
+app.use((req, res, next) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(204);
+  }
+  next();
+});
+
+// kleine Testseite (weckt den Server)
+app.get("/", (req, res) => {
+  res.send("OK");
+});import express from "express";
 import fetch from "node-fetch";
 
 const app = express();
