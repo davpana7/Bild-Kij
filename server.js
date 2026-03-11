@@ -4,7 +4,7 @@ import fetch from "node-fetch";
 const app = express();
 app.use(express.json());
 
-// CORS (für Google Sites)
+// CORS für Google Sites
 app.use((req, res, next) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
@@ -35,10 +35,23 @@ app.get("/generate", async (req, res) => {
       }
     );
 
+    const contentType = response.headers.get("content-type");
+
+    // ❌ Kein Bild von Hugging Face bekommen
+    if (!contentType || !contentType.startsWith("image/")) {
+      const text = await response.text();
+      console.error("Kein Bild:", text);
+      return res
+        .status(503)
+        .send("KI gerade nicht verfügbar – bitte erneut versuchen");
+    }
+
+    // ✅ Bild OK
     const buffer = await response.arrayBuffer();
-    res.setHeader("Content-Type", "image/png");
+    res.setHeader("Content-Type", contentType);
     res.send(Buffer.from(buffer));
-  } catch {
+
+  } catch (err) {
     res.status(500).send("Error generating image");
   }
 });
